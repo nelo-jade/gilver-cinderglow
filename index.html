@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Handout Chat</title>
+<title>Interactive Handout Chat</title>
 <style>
   body {
     margin: 0;
@@ -27,31 +27,52 @@
     border-radius: 8px;
     line-height: 1.6;
     white-space: pre-line;
+    max-width: 85%;
   }
   .message.visible {
     opacity: 1;
     transform: translateY(0);
   }
-  .typing {
-    display: inline-block;
-    font-weight: normal;
-  }
-  .typing::after {
-    content: '6'; /* … */
-    animation: blink 1s infinite steps(1);
-  }
-  @keyframes blink {
-    0% { opacity: 0; }
-    50% { opacity: 1; }
-    100% { opacity: 0; }
-  }
-.typing::after {
-    content: "typing...";
-    animation: blink 1s steps(1,end) infinite;
+
+  /* you / anonymous 帳 */
+  .message.you {
+    background: #1e3a5f;
+    border-radius: 8px;
+    margin-left: auto;
+    max-width: 70%;
+    text-align: left;
 }
-@keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+  .message.anonymous { background:#222;margin-right:auto; }
+
+  /* 選択肢 UI */
+  .choice-box {
+    background: #1b1b1b;
+    border: 1px solid #444;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    max-width: 100%;
+  }
+  .choice-box:hover { background: #333; }
+  .choice-option { outline: 2px dashed rgba(255,255,255,0.06); }
+
+  /* LINE風 typing アニメーション（横並びの三点） */
+  .dots { display: inline-flex; align-items: center; padding: 6px 10px; background:#333; border-radius:12px; }
+  .dot { height: 6px; width: 6px; margin: 0 4px; background: #bbb; border-radius: 50%; display: inline-block; animation: blink 1.1s infinite; }
+  .dot:nth-child(2) { animation-delay: 0.15s; }
+  .dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 0% { opacity: 0.25; } 50% { opacity: 1; } 100% { opacity: 0.25; } }
+
+  /* small responsive tweak */
+  @media (max-width:420px) {
+    .chat-container { padding: 12px; }
+    .message { font-size: 14px; }
+  }
+.fadeout {
+    opacity: 0;
+    transition: opacity 0.4s ease;
 }
 </style>
 </head>
@@ -59,50 +80,127 @@
 <div class="chat-container" id="chat"></div>
 
 <script>
-  // sequence: text, optional delay before typing, typing duration (ms)
+  // structured sequence: normal messages + choice blocks
   const sequence = [
-    { text: "anonymous: やあ、遺書屋さん。久しぶり。", delay: 0, typing: 0 },
-    { text: "anonymous: このチャットに来たってことは、依頼を受けてくれたってことでいいんだよね。ありがとう", delay: 1000, typing: 500 },
-    { text: "anonymous: さて、依頼内容なんだけど。同封したチケットでクルーズ船に乗って、ある人に荷物を届けて欲しい。\n荷物は出港当日12時に(35.443946266776194, 139.65253930773477)で受け渡す。", delay: 2000, typing: 2000 },
-    { text: "anonymous: 殺人の依頼じゃなくてごめんね？でも、今回もちょっと厄介なことになりそうでね。\nできれば荒事にも対応できる人にお願いしたいんだ。もちろん、報酬は弾むよ。", delay: 2000, typing: 1500 },
-    { text: "anonymous: ちなみに、今回のクルーズはハロウィン仕様だそうだよ。\nつくづく君たちは冥界に縁があるね(笑)", delay: 3000, typing: 1000 },
-    { text: "anonymous: 荷物届けちゃったら暇だろうし、折角だから楽しんできてよ。1年前みたいにね。", delay: 1000, typing: 500 }
+    { type: "msg", from: "anonymous", text: "やあ、遺書屋さん。久しぶり。", delay: 0, typing: 800 },
+    { type: "msg", from: "anonymous", text: "このチャットに来たってことは、依頼を受けてくれたってことでいいんだよね。ありがとう", delay: 1200, typing: 800 },
+    {
+      type: "msg",
+      you: "依頼内容は？",
+      reply: [
+        "同封したチケットでクルーズ船に乗って、ある人に荷物を届けて欲しい。",
+        "殺人の依頼じゃなくてごめんね？でも、どうしても君たちにお願いしたいって頼まれちゃってさ。もちろん、報酬は弾むよ。"
+      ]
+    },
+    {
+      type: "msg",
+      you: "荷物はどこにあるんだ",
+      reply: [
+        "出港1時間前に受け渡す。位置情報はその時送るよ、用心に越したことはないからね"
+      ]
+    },
+    {
+      type: "msg",
+      you: "荷物の中身は？",
+      reply: [
+        "残念だけど、僕も中身は知らない。壊れ物らしいから丁寧に扱ってね。",
+        "……念のため言っておくけど、開封したらその時点で任務失敗だからね？よろしく頼むよ"
+      ]
+    },
+    {
+      type: "msg",
+      you: "誰に届ければいいんだ",
+      reply: ["依頼人が当日連絡するってさ。携帯の電源は切らないでおいてくれよ"]
+    },
+    {
+      type: "msg",
+      you: "船って手荷物検査があるんじゃないか？",
+      reply: [
+        "その通り。銃を直接持ち込むのは難しいだろうね。",
+        "よければ知り合いのクルーに依頼してDeck 4に使えそうなものを置いておくよ",
+        "……警備の目もあるし、夜になっちゃうかもしれないけど"
+      ]
+    },
+    {
+      type: "msg",
+      from: "anonymous",
+      text: "ちなみに、今回のクルーズはハロウィン仕様だそうだよ。つくづく君たちは冥界に縁があるね(笑)",
+      delay: 1500,
+      typing: 700
+    },
+    {
+      type: "msg",
+      from: "anonymous",
+      text: "荷物届けちゃったら暇だろうし、折角だから楽しんできてよ。1年前みたいにね。",
+      delay: 900,
+      typing: 700
+    }
   ];
 
   const chat = document.getElementById("chat");
 
-  function showTypingIndicator() {
+  function makeMsg(text, from) {
     const div = document.createElement("div");
-    div.className = "message";
-    div.innerHTML = '<span class="typing"></span>';
+    div.className = from === "you" ? "message you" : "message anonymous";
+    div.textContent = (from === "you" ? "you: " : "anonymous: ") + text;
     chat.appendChild(div);
-    // ensure it's rendered before adding visible
-    setTimeout(() => div.classList.add("visible"), 20);
-    // scroll to bottom so typing is visible
+    setTimeout(() => div.classList.add("visible"), 30);
     window.scrollTo(0, document.body.scrollHeight);
     return div;
   }
 
-  function showMessage(text) {
-    const div = document.createElement("div");
-    div.className = "message";
-    div.textContent = text;
-    chat.appendChild(div);
-    setTimeout(() => div.classList.add("visible"), 20);
+  function typingIndicator() {
+    const wrap = document.createElement("div");
+    wrap.className = "message anonymous";
+    wrap.innerHTML = '<span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>';
+    chat.appendChild(wrap);
+    setTimeout(() => wrap.classList.add("visible"), 20);
     window.scrollTo(0, document.body.scrollHeight);
+    return wrap;
+  }
+
+  async function playReplyList(list) {
+    for (const line of list) {
+      const t = typingIndicator();
+      await new Promise(r => setTimeout(r, 900));
+      t.remove();
+      makeMsg(line, "anonymous");
+      await new Promise(r => setTimeout(r, 500));
+    }
   }
 
   async function playSequence() {
     for (const item of sequence) {
-      if (item.delay) await new Promise(r => setTimeout(r, item.delay));
-      const typingDiv = showTypingIndicator();
-      if (item.typing) await new Promise(r => setTimeout(r, item.typing));
-      typingDiv.remove();
-      showMessage(item.text);
+      if (item.type === "msg") {
+        if (item.delay) await new Promise(r => setTimeout(r, item.delay));
+        const t = typingIndicator();
+        await new Promise(r => setTimeout(r, item.typing));
+        t.remove();
+        makeMsg(item.text, item.from);
+      }
+
+      if (item.type === "choice") {
+        // wait a moment, then show the player's "you" option (right-side)
+        await new Promise(r => setTimeout(r, 1000));
+        const youMsg = makeMsg(item.you, "you");
+        youMsg.classList.add("choice-option");
+
+        // wait for the player to click the youMsg; once clicked, show anonymous replies in order
+        await new Promise(res => {
+          youMsg.addEventListener("click", async () => {
+            youMsg.classList.add("fadeout");
+            youMsg.classList.remove("choice-option");
+            await playReplyList(item.reply);
+            // small pause before continuing sequence
+            await new Promise(r => setTimeout(r, 300));
+            res();
+          }, { once: true });
+        });
+      }
     }
   }
 
-  // start
+  // start the flow
   playSequence();
 </script>
 </body>

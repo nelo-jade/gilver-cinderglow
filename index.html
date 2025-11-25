@@ -56,8 +56,15 @@
     max-width: 100%;
   }
   .choice-box:hover { background: #333; }
-  .choice-option { outline: 2px dashed rgba(255,255,255,0.06); }
-  .choice-option.clicked {background: #2a4a7a; color: #fff}
+  .choice-option {
+    outline: 2px dashed rgba(255,255,255,0.06);
+    transition: background 0.3s, color 0.3s;
+  }
+
+  .choice-option.clicked {
+    background: #2a4a7a !important; /* !importantで上書き確実に */
+    color: #fff !important;
+  }
 
   
   /* LINE風 typing アニメーション（横並びの三点） */

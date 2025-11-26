@@ -71,6 +71,13 @@
 <div class="chat-container" id="chat"></div>
 
 <script>
+const pass = prompt("password");
+if(pass !== "drop"){
+    document.body.innerHTML = "アクセス拒否";
+}
+</script>
+  
+<script>
 const sequence = [
   { type: "msg", from: "anonymous", text: "やあ、遺書屋さん。久しぶり。", delay: 0, typing: 800 },
   { type: "msg", from: "anonymous", text: "このチャットに来たってことは、依頼を受けてくれたってことでいいんだよね。ありがとう", delay: 1200, typing: 800 },
@@ -165,3 +172,4 @@ playSequence();
 </script>
 </body>
 </html>
+
